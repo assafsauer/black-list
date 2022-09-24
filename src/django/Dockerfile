@@ -1,26 +1,20 @@
-FROM python:3.7.4-alpine3.10
+# Tweak the base image by installing pipenv
+FROM python:3.10 as base
+RUN pip install pipenv
 
-ADD django-polls/requirements.txt /app/requirements.txt
+# Begin our actual build
+FROM base as base1
+# collectstatic needs the secret key to be set. We store that in this environment variable.
+# Set this value in this project's .env file
+ARG DJANGO_SECRET_KEY
 
-RUN set -ex \
-    && apk add --no-cache --virtual .build-deps postgresql-dev build-base \
-    && python -m venv /env \
-    && /env/bin/pip install --upgrade pip \
-    && /env/bin/pip install --no-cache-dir -r /app/requirements.txt \
-    && runDeps="$(scanelf --needed --nobanner --recursive /env \
-        | awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
-        | sort -u \
-        | xargs -r apk info --installed \
-        | sort -u)" \
-    && apk add --virtual rundeps $runDeps \
-    && apk del .build-deps
+RUN mkdir -p /usr/src/app
 
-ADD django-polls /app
-WORKDIR /app
+COPY ./_app /usr/src/app
+COPY Pipfile /usr/src/app/
+COPY Pipfile.lock /usr/src/app/
 
-ENV VIRTUAL_ENV /env
-ENV PATH /env/bin:$PATH
+WORKDIR /usr/src/app
 
-EXPOSE 8000
-
-CMD ["gunicorn", "--bind", ":8000", "--workers", "3", "mysite.wsgi"]
+RUN pipenv install --system --deploy
+RUN python manage.py collectstatic --no-input
