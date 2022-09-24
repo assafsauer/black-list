@@ -18,6 +18,7 @@ RUN chmod +x /opt/app/start-server.sh
 COPY martor_demo /opt/app/martor_demo/
 WORKDIR /opt/app
 RUN pip install -r requirements.txt --cache-dir /opt/app/pip_cache
+RUN /usr/local/bin/python -m pip install --upgrade pip
 RUN chown -R www-data:www-data /opt/app
 
 # start server
